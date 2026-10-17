@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAN Log Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#14202b;--mute:#5d6b78;--line:#d5dce3;--trace:#1f5fbf;--high:#b3261e;--med:#b86a00;--low:#5d6b78}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:17px;margin:0 0 12px}
+p.sub{margin:0 0 22px;color:var(--mute);max-width:62ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px;margin-bottom:18px}
+form{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+input[type=file]{font:inherit;color:var(--ink)}
+button{font:inherit;font-weight:600;border-radius:4px;padding:8px 16px;cursor:pointer;border:1px solid var(--trace)}
+button.primary{background:var(--trace);color:#fff}button.ghost{background:#fff;color:var(--trace)}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #8fb4ee;outline-offset:2px}
+#err{color:var(--high);margin-top:10px;min-height:1em}
+.hint{font-size:13px;color:var(--mute);margin:10px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.tile b{display:block;font-size:22px;font-family:"IBM Plex Mono",monospace;font-weight:400}
+.tile span{font-size:13px;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--mute);font-size:13px}
+td.n{font-family:"IBM Plex Mono",monospace;text-align:right}th.n{text-align:right}
+.sev{font-weight:600}.sev.high{color:var(--high)}.sev.medium{color:var(--med)}.sev.low{color:var(--low)}
+.scroll{overflow-x:auto}
+select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:#fff}
+.chartbox{position:relative;height:300px}
+.empty{color:var(--mute)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.toolbar .tb-title{font-weight:600}
+details.msg{border-bottom:1px solid var(--line);padding:8px 0}
+details.msg summary{cursor:pointer;display:flex;gap:16px;flex-wrap:wrap}
+details.msg summary span.id{font-family:"IBM Plex Mono",monospace;min-width:60px}
+details.msg summary span.nm{font-weight:600;min-width:140px}
+details.msg summary span.meta{color:var(--mute)}
+details.msg table{margin-top:8px}
+.choices{color:var(--mute);font-size:13px}
+#results,#dbcview{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>CAN Log Analyzer</h1>
+<p class="sub">Upload a DBC file and a CAN log (.asc, .log, .csv or .blf). The app decodes every signal, plots it, and flags missing messages, out-of-range values and unknown IDs. With only a DBC file, it shows what the database defines.</p>
+
+<section class="panel">
+<form id="form">
+<label>DBC file<input type="file" id="dbc" accept=".dbc" required></label>
+<label>CAN log (optional)<input type="file" id="log" accept=".asc,.log,.csv,.blf"></label>
+<label>Bus speed
+<select id="bitrate">
+<option value="125000">125 kbit/s</option>
+<option value="250000">250 kbit/s</option>
+<option value="500000" selected>500 kbit/s</option>
+<option value="1000000">1 Mbit/s</option>
+</select></label>
+<button class="primary" type="submit">Analyze files</button>
+<button class="ghost" type="button" id="sample">Load demo log</button>
+</form>
+<p class="hint">Only a DBC file chosen? Analyze shows its messages and signals instead.</p>
+<div id="err" role="alert"></div>
+</section>
+
+<div id="results">
+<div class="toolbar panel">
+<span class="tb-title">Report</span>
+<span>
+<button class="ghost" type="button" id="dlHtml">Download report (HTML)</button>
+<button class="ghost" type="button" id="dlCsv">Download anomalies (CSV)</button>
+</span>
+</div>
+<section class="panel"><div class="tiles" id="tiles"></div></section>
+<section class="panel"><h2>Anomalies</h2><div class="scroll" id="anoms"></div></section>
+<section class="panel">
+<h2>Signal plot</h2>
+<label>Signal <select id="sig"></select></label>
+<div class="chartbox"><canvas id="chart" aria-label="Signal over time"></canvas></div>
+</section>
+<section class="panel">
+<h2>Bus load over time</h2>
+<p class="hint" id="busnote" style="margin:0 0 8px"></p>
+<div class="chartbox"><canvas id="buschart" aria-label="Bus load percent over time"></canvas></div>
+</section>
+<section class="panel"><h2>Message timing</h2><div class="scroll" id="msgs"></div></section>
+</div>
+
+<div id="dbcview">
+<section class="panel"><div class="tiles" id="dbctiles"></div></section>
+<section class="panel"><h2>Messages and signals</h2><div id="dbcmsgs"></div></section>
+</div>
+</main>
+<script>
+let chart, busChart, data, lastName = 'demo';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const typeName = t => t.replace(/_/g, ' ');
+
+async function run(promise, mode){
+  $('err').textContent = '';
+  try{
+    const r = await promise;
+    if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.detail || 'Request failed (' + r.status + ')'); }
+    data = await r.json();
+    mode === 'dbc' ? renderDbc() : render();
+  }catch(e){ $('err').textContent = e.message; }
+}
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const dbc = $('dbc').files[0], log = $('log').files[0];
+  const fd = new FormData();
+  fd.append('dbc', dbc);
+  if(!log){ lastName = dbc.name; run(fetch('/api/inspect', {method:'POST', body:fd}), 'dbc'); return; }
+  fd.append('log', log); fd.append('bitrate', $('bitrate').value);
+  lastName = log.name;
+  run(fetch('/api/analyze', {method:'POST', body:fd}), 'log');
+});
+$('sample').addEventListener('click', () => { lastName = 'demo'; run(fetch('/api/sample'), 'log'); });
+
+function show(which){
+  $('results').style.display = which === 'results' ? 'block' : 'none';
+  $('dbcview').style.display = which === 'dbc' ? 'block' : 'none';
+}
+function tiles(list){ return list.map(([v,l]) => `<div class="tile"><b>${esc(v)}</b><span>${l}</span></div>`).join(''); }
+
+function render(){
+  show('results');
+  const s = data.summary, b = data.bus_load;
+  $('tiles').innerHTML = tiles([
+    [s.frames.toLocaleString(), 'frames'], [s.duration_s + ' s', 'duration'],
+    [s.messages_decoded, 'messages decoded'], [s.unknown_ids, 'unknown IDs'], [s.anomalies, 'anomalies'],
+    [b.avg_pct.toFixed(1) + '%', 'average bus load']
+  ]);
+  $('anoms').innerHTML = data.anomalies.length
+    ? `<table><tr><th>Severity</th><th>Type</th><th>Message</th><th class="n">Time (s)</th><th>Detail</th></tr>` +
+      data.anomalies.map(a => `<tr><td class="sev ${a.severity}">${a.severity}</td><td>${typeName(a.type)}</td><td>${esc(a.message)}</td><td class="n">${a.time.toFixed(2)}</td><td>${esc(a.detail)}</td></tr>`).join('') + '</table>'
+    : '<p class="empty">No anomalies found in this log.</p>';
+  $('msgs').innerHTML = `<table><tr><th>ID</th><th>Name</th><th class="n">Frames</th><th class="n">Expected (ms)</th><th class="n">Average (ms)</th><th class="n">Jitter (ms)</th><th class="n">Gaps</th></tr>` +
+    data.messages.map(m => `<tr><td>${m.id}</td><td>${esc(m.name)}</td><td class="n">${m.count}</td><td class="n">${m.expected_ms ?? '-'}</td><td class="n">${m.avg_ms ?? '-'}</td><td class="n">${m.jitter_ms}</td><td class="n">${m.gaps}</td></tr>`).join('') + '</table>';
+  const names = Object.keys(data.signals).sort();
+  $('sig').innerHTML = names.map(n => `<option>${esc(n)}</option>`).join('');
+  plot(); plotBus();
+}
+function plot(){
+  const name = $('sig').value; if(!name) return;
+  const sg = data.signals[name];
+  const ds = [{label: name + (sg.unit ? ' (' + sg.unit + ')' : ''), data: sg.points.map(([x,y]) => ({x,y})),
+    borderColor:'#1f5fbf', borderWidth:1.5, pointRadius:0, stepped:true}];
+  [['min', sg.min], ['max', sg.max]].forEach(([k,v]) => { if(v !== null){
+    ds.push({label:'DBC ' + k, data:[{x:sg.points[0][0],y:v},{x:sg.points.at(-1)[0],y:v}],
+      borderColor:'#b3261e', borderDash:[6,4], borderWidth:1, pointRadius:0}); }});
+  if(chart) chart.destroy();
+  chart = new Chart($('chart'), {type:'line', data:{datasets:ds}, options:{
+    maintainAspectRatio:false, animation:false, parsing:false,
+    scales:{x:{type:'linear', title:{display:true, text:'Time (s)'}}, y:{title:{display:true, text:sg.unit}}},
+    plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'line'}}}}});
+}
+function plotBus(){
+  const b = data.bus_load;
+  $('busnote').textContent = `Estimated at ${(b.bitrate/1000)} kbit/s: average ${b.avg_pct.toFixed(2)}%, peak ${b.peak_pct.toFixed(2)}%. Frame size is approximate and ignores bit stuffing.`;
+  if(busChart) busChart.destroy();
+  busChart = new Chart($('buschart'), {type:'line', data:{datasets:[{
+    label:'Bus load (%)', data:b.points.map(p => ({x:p[0], y:p[2]})),
+    borderColor:'#1f5fbf', backgroundColor:'rgba(31,95,191,.12)', fill:true, borderWidth:1.5, pointRadius:2, tension:0}]},
+    options:{maintainAspectRatio:false, animation:false, parsing:false,
+      scales:{x:{type:'linear', title:{display:true, text:'Time (s)'}}, y:{beginAtZero:true, title:{display:true, text:'% of bus capacity'}}},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{afterLabel:c => b.points[c.dataIndex][1] + ' frames'}}}}});
+}
+$('sig').addEventListener('change', plot);
+
+/* ---------- DBC only view ---------- */
+function renderDbc(){
+  show('dbc');
+  const s = data.summary;
+  $('dbctiles').innerHTML = tiles([[s.messages, 'messages'], [s.signals, 'signals'], [s.nodes.length, 'nodes']]);
+  $('dbcmsgs').innerHTML = data.messages.map(m => `
+    <details class="msg"><summary><span class="id">${m.id}</span><span class="nm">${esc(m.name)}</span>
+    <span class="meta">${m.dlc} bytes</span><span class="meta">${m.cycle_ms ? 'every ' + m.cycle_ms + ' ms' : 'no cycle time'}</span>
+    <span class="meta">${m.signals.length} signals</span><span class="meta">${esc(m.senders.join(', ') || 'no sender')}</span></summary>
+    <div class="scroll"><table><tr><th>Signal</th><th class="n">Start bit</th><th class="n">Length</th><th class="n">Scale</th><th class="n">Offset</th><th class="n">Min</th><th class="n">Max</th><th>Unit</th><th>Values</th></tr>` +
+    m.signals.map(g => `<tr><td>${esc(g.name)}</td><td class="n">${g.start}</td><td class="n">${g.length}</td><td class="n">${g.scale}</td><td class="n">${g.offset}</td><td class="n">${g.min ?? '-'}</td><td class="n">${g.max ?? '-'}</td><td>${esc(g.unit)}</td><td class="choices">${g.choices ? esc(Object.entries(g.choices).map(([k,v]) => k + '=' + v).join(', ')) : ''}</td></tr>`).join('') +
+    '</table></div></details>').join('');
+}
+
+/* ---------- exports ---------- */
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const stamp = () => new Date().toISOString().slice(0, 10);
+const base = () => lastName.replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_');
+
+$('dlCsv').addEventListener('click', () => {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [['severity','type','message','time_s','detail'].join(',')].concat(
+    data.anomalies.map(a => [a.severity, a.type, q(a.message), a.time.toFixed(3), q(a.detail)].join(',')));
+  download(`anomalies-${base()}-${stamp()}.csv`, rows.join('\r\n'), 'text/csv');
+});
+
+$('dlHtml').addEventListener('click', () => {
+  const s = data.summary, b = data.bus_load;
+  const img = (c, alt) => c ? `<img alt="${alt}" src="${c.toBase64Image()}" style="max-width:100%">` : '';
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>CAN analysis report</title>
+<style>body{font:14px/1.5 system-ui,sans-serif;max-width:900px;margin:30px auto;padding:0 16px;color:#14202b}
+h1{font-size:22px}h2{font-size:16px;margin-top:28px}table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid #d5dce3;padding:6px 8px;text-align:left;vertical-align:top}th{color:#5d6b78}
+.high{color:#b3261e;font-weight:600}.medium{color:#b86a00;font-weight:600}.low{color:#5d6b78;font-weight:600}
+.grid{display:flex;flex-wrap:wrap;gap:10px}.grid div{border:1px solid #d5dce3;padding:8px 12px;border-radius:4px}
+.grid b{display:block;font-size:20px}</style></head><body>
+<h1>CAN log analysis report</h1>
+<p>File: ${esc(lastName)}<br>Generated: ${new Date().toLocaleString()}<br>Bus speed: ${b.bitrate/1000} kbit/s</p>
+<div class="grid"><div><b>${s.frames.toLocaleString()}</b>frames</div><div><b>${s.duration_s} s</b>duration</div>
+<div><b>${s.messages_decoded}</b>messages decoded</div><div><b>${s.unknown_ids}</b>unknown IDs</div>
+<div><b>${s.anomalies}</b>anomalies</div><div><b>${b.avg_pct.toFixed(2)}%</b>average bus load (peak ${b.peak_pct.toFixed(2)}%)</div></div>
+<h2>Anomalies</h2>${data.anomalies.length ? '<table><tr><th>Severity</th><th>Type</th><th>Message</th><th>Time (s)</th><th>Detail</th></tr>' +
+  data.anomalies.map(a => `<tr><td class="${a.severity}">${a.severity}</td><td>${typeName(a.type)}</td><td>${esc(a.message)}</td><td>${a.time.toFixed(2)}</td><td>${esc(a.detail)}</td></tr>`).join('') + '</table>' : '<p>No anomalies found.</p>'}
+<h2>Message timing</h2><table><tr><th>ID</th><th>Name</th><th>Frames</th><th>Expected (ms)</th><th>Average (ms)</th><th>Jitter (ms)</th><th>Gaps</th></tr>
+${data.messages.map(m => `<tr><td>${m.id}</td><td>${esc(m.name)}</td><td>${m.count}</td><td>${m.expected_ms ?? '-'}</td><td>${m.avg_ms ?? '-'}</td><td>${m.jitter_ms}</td><td>${m.gaps}</td></tr>`).join('')}</table>
+<h2>Signal: ${esc($('sig').value)}</h2>${img(chart, 'Signal plot')}
+<h2>Bus load over time</h2>${img(busChart, 'Bus load')}
+<p style="color:#5d6b78">Bus load is estimated from frame sizes and ignores bit stuffing.</p>
+</body></html>`;
+  download(`can-report-${base()}-${stamp()}.html`, html, 'text/html');
+});
+</script>
+</body>
+</html>
