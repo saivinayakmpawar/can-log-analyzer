@@ -32,8 +32,7 @@ Supported log formats: `.asc` (Vector), `.log` (candump), `.csv` and `.blf`, thr
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/can-log-analyzer.git
-cd can-log-analyzer
+github.com/saivinayakmpawar/can-log-analyzer.git.cd can-log-analyzer
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
