@@ -1,0 +1,15 @@
+services:
+  can-log-analyzer:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"   # bound to localhost; put a reverse proxy with TLS in front before exposing it
+    environment:
+      # Uncomment to require a token on every API call:
+      # CAN_ANALYZER_TOKEN: "change-me-to-a-long-random-value"
+      CAN_ANALYZER_MAX_LOG_MB: "25"
+      CAN_ANALYZER_MAX_ANALYSES: "25"
+    volumes:
+      - analyses:/data
+    restart: unless-stopped
+volumes:
+  analyses:

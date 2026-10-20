@@ -1,5 +1,7 @@
-fastapi>=0.110
-uvicorn>=0.29
-cantools>=39.4
-python-can>=4.3
-python-multipart>=0.0.9
+# Runtime dependencies. Ranges are bounded to the major versions the test suite was run against.
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+cantools>=39.4,<46
+python-can>=4.3,<5
+python-multipart>=0.0.9,<1
+reportlab>=4.0,<5

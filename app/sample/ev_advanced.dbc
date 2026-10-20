@@ -1,0 +1,49 @@
+VERSION "synthetic-demo-1"
+
+NS_ :
+	BA_DEF_
+	BA_
+	VAL_
+
+BS_:
+
+BU_: VCU BMS CHG
+
+BO_ 256 VCU_Status: 8 VCU
+ SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|120] "km/h" Vector__XXX
+ SG_ DriveMode : 16|3@1+ (1,0) [0|4] "" Vector__XXX
+ SG_ Handbrake : 19|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 2147483904 Charger_Status: 8 CHG
+ SG_ ChargerVoltage : 0|16@1+ (0.01,0) [0|90] "V" Vector__XXX
+ SG_ ChargerCurrent : 16|16@1+ (0.1,0) [0|40] "A" Vector__XXX
+ SG_ ChargerState : 32|3@1+ (1,0) [0|4] "" Vector__XXX
+
+BO_ 416 Motor_Cmd: 8 VCU
+ SG_ TorqueCmd : 0|16@1- (0.1,0) [-150|150] "Nm" Vector__XXX
+ SG_ RegenLimit : 16|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ MC_Counter : 48|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ MC_Checksum : 56|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 512 BMS_Pack: 8 BMS
+ SG_ PackVoltage : 0|16@1+ (0.01,0) [0|90] "V" Vector__XXX
+ SG_ PackCurrent : 16|16@1- (0.1,0) [-200|300] "A" Vector__XXX
+ SG_ SOC : 32|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+ SG_ MaxCellTemp : 40|8@1+ (1,-40) [-40|80] "degC" Vector__XXX
+
+BO_ 768 BMS_CellData: 8 BMS
+ SG_ CellMux M : 0|4@1+ (1,0) [0|2] "" Vector__XXX
+ SG_ CellV_A m0 : 8|16@1+ (0.001,0) [2.5|4.2] "V" Vector__XXX
+ SG_ CellV_B m1 : 8|16@1+ (0.001,0) [2.5|4.2] "V" Vector__XXX
+ SG_ CellTemp_Max m2 : 8|8@1+ (1,-40) [-40|60] "degC" Vector__XXX
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 256 100;
+BA_ "GenMsgCycleTime" BO_ 2147483904 100;
+BA_ "GenMsgCycleTime" BO_ 416 20;
+BA_ "GenMsgCycleTime" BO_ 512 100;
+BA_ "GenMsgCycleTime" BO_ 768 100;
+
+VAL_ 256 DriveMode 0 "NEUTRAL" 1 "ECO" 2 "BOOST" 3 "REVERSE";
+VAL_ 2147483904 ChargerState 0 "IDLE" 1 "PRECHARGE" 2 "CC" 3 "CV" 4 "DONE";

@@ -1,0 +1,16 @@
+{
+  "gap_factor": 3.0,
+  "frequency_tolerance_pct": 20,
+  "thresholds": [
+    { "signal": "BMS_CellData.CellV_A", "min": 3.0, "max": 4.2, "severity": "medium" }
+  ],
+  "messages": {
+    "Charger_Status": { "tolerance_pct": 15 }
+  },
+  "counters": [
+    { "message": "Motor_Cmd", "signal": "MC_Counter", "severity": "medium" }
+  ],
+  "checksums": [
+    { "message": "Motor_Cmd", "signal": "MC_Checksum", "algorithm": "crc8_sae_j1850", "severity": "high" }
+  ]
+}

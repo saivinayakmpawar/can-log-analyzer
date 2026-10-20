@@ -2,7 +2,6 @@ from pathlib import Path
 
 import can
 import cantools
-
 import pytest
 from fastapi.testclient import TestClient
 

@@ -1,0 +1,44 @@
+[project]
+name = "can-log-analyzer"
+version = "0.2.0"
+description = "An open-source automotive CAN bus analysis and diagnostics platform featuring DBC decoding, signal visualization, anomaly detection, log comparison, and engineering reports."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+  "fastapi>=0.110,<1",
+  "uvicorn>=0.29,<1",
+  "cantools>=39.4,<46",
+  "python-can>=4.3,<5",
+  "python-multipart>=0.0.9,<1",
+  "reportlab>=4.0,<5",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["app/static/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101", "B008", "RUF012", "E501", "S608"]  # asserts in tests, FastAPI Depends(), long f-strings; S608: SQL is parameterised, see store.py
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+"scripts/*" = ["S"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["app"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning"]
+markers = ["slow: larger-volume tests"]

@@ -34,12 +34,17 @@ def frames():
             yield t, "Motor_Status", dict(MotorRPM=speed(t) * 55, MotorTorque=40 * math.sin(t / 3) + random.uniform(-1, 1))
 
 
+# Collect first, then write in timestamp order: a log whose timestamps go backwards would
+# (correctly) be flagged by the analyzer's timestamp-regression check.
+rows = []
+for t, name, vals in frames():
+    m = db.get_message_by_name(name)
+    rows.append((1000 + t, m.frame_id, m.encode(vals, strict=False)))
+    if name == "VCU_Status" and 8.0 <= t < 8.5:  # planted: unknown ID
+        rows.append((1000 + t + 0.003, 0x7FF, bytes(8)))
+rows.sort(key=lambda r: r[0])  # stable: equal timestamps keep generation order
+
 with can.ASCWriter(OUT / "ev_demo.asc") as w:
-    for t, name, vals in frames():
-        m = db.get_message_by_name(name)
-        w.on_message_received(can.Message(timestamp=1000 + t, arbitration_id=m.frame_id,
-                                          data=m.encode(vals, strict=False), is_extended_id=False))
-        if name == "VCU_Status" and 8.0 <= t < 8.5:  # planted: unknown ID
-            w.on_message_received(can.Message(timestamp=1000 + t + 0.003, arbitration_id=0x7FF,
-                                              data=bytes(8), is_extended_id=False))
+    for ts, arb_id, data in rows:
+        w.on_message_received(can.Message(timestamp=ts, arbitration_id=arb_id, data=data, is_extended_id=False))
 print("wrote", OUT / "ev_demo.asc")
