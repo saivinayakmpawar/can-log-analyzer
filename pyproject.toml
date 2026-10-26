@@ -1,6 +1,5 @@
-[project]
 name = "can-log-analyzer"
-version = "0.2.0"
+version = "1.0.0"
 description = "An open-source automotive CAN bus analysis and diagnostics platform featuring DBC decoding, signal visualization, anomaly detection, log comparison, and engineering reports."
 readme = "README.md"
 requires-python = ">=3.10"
